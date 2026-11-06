@@ -1,0 +1,842 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QA First Day</title>
+<meta name="description" content="Your first day as a Junior QA Tester at RailBack: chat, board, app and CI on one release day.">
+<style>
+  :root {
+    --bg: #F4F5F7;
+    --surface: #FFFFFF;
+    --ink: #172B4D;
+    --muted: #626F86;
+    --line: #DFE1E6;
+    --accent: #1F5AD6;
+    --accent-soft: #E9F0FD;
+    --bug: #D93A2B;
+    --bug-soft: #FDECEA;
+    --ok: #1F8A4C;
+    --ok-soft: #E6F4EC;
+    --warn: #A35F00;
+    --warn-soft: #FFF4E0;
+    --term: #1E2530;
+    --term-ink: #DCE3EC;
+    --rail: #0E7C5A;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Consolas, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--sans); -webkit-text-size-adjust: 100%; }
+  button, input, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  #root { max-width: 560px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; background: var(--bg); }
+
+  /* ---------- workspace chrome ---------- */
+  .top {
+    position: sticky; top: 0; z-index: 10;
+    display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+    padding: 10px 14px; background: var(--surface); border-bottom: 1px solid var(--line);
+  }
+  .clock { font: 700 22px/1 var(--mono); }
+  .clock.late { color: var(--bug); }
+  .buildpill { justify-self: start; font-size: 13px; color: var(--muted); }
+  .buildpill b { color: var(--ink); font-family: var(--mono); font-size: 13px; }
+  .release { font-size: 12px; color: var(--muted); text-align: right; line-height: 1.2; }
+  .release b { display: block; color: var(--ink); font: 700 14px var(--mono); }
+  .content { flex: 1; padding: 14px 14px 96px; }
+  .tabs {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); z-index: 10;
+    width: 100%; max-width: 560px; display: grid; grid-template-columns: repeat(4, 1fr);
+    background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tab { position: relative; border: 0; background: none; padding: 8px 0 10px; font-size: 12px; color: var(--muted); display: grid; justify-items: center; gap: 2px; }
+  .tab svg { width: 24px; height: 24px; }
+  .tab[aria-selected="true"] { color: var(--accent); font-weight: 700; }
+  .badge { position: absolute; top: 4px; left: calc(50% + 6px); min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--bug); color: #fff; font: 700 11px/18px var(--sans); }
+
+  h2 { font-size: 18px; margin: 4px 0 10px; }
+  h3 { font-size: 15px; margin: 18px 0 8px; }
+  p { margin: 0 0 10px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  code, .mono { font-family: var(--mono); font-size: 13px; }
+
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 0 0 12px; }
+  .btn { border: 0; border-radius: 6px; background: var(--accent); color: #fff; font-weight: 700; min-height: 44px; padding: 0 16px; }
+  .btn.block { display: block; width: 100%; }
+  .btn.ghost { background: var(--surface); color: var(--accent); border: 1px solid var(--accent); }
+  .btn.danger { background: var(--bug); }
+  .btn:disabled { background: #B3BAC5; border-color: #B3BAC5; color: #fff; cursor: not-allowed; }
+  .row-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .row-btns .btn { min-height: 38px; font-size: 14px; }
+
+  /* ---------- chat ---------- */
+  .decision { background: var(--warn-soft); border: 1px solid #F5D9A8; border-radius: 8px; padding: 12px 14px; margin-top: 12px; }
+  .decision p { margin-bottom: 6px; }
+  .msg { display: grid; grid-template-columns: 36px 1fr; gap: 10px; padding: 8px 0; }
+  .msg.new { animation: slidein .35s ease-out; }
+  @keyframes slidein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .av { width: 36px; height: 36px; border-radius: 8px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px; }
+  .who { font-weight: 700; }
+  .who span { font-weight: 400; color: var(--muted); font-size: 12px; margin-left: 6px; }
+  .text { overflow-wrap: anywhere; }
+
+  /* ---------- board ---------- */
+  .ticket { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 0 0 8px; }
+  .t-head { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .t-head .key { font-family: var(--mono); }
+  .t-title { margin: 4px 0 6px; font-weight: 600; }
+  .t-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
+  .chip { border-radius: 4px; padding: 1px 7px; font-weight: 700; font-size: 12px; background: #EBECF0; }
+  .chip.Critical { background: var(--bug); color: #fff; }
+  .chip.Major { background: var(--bug-soft); color: var(--bug); }
+  .chip.Minor { background: var(--warn-soft); color: var(--warn); }
+  .chip.Trivial { background: #EBECF0; color: var(--muted); }
+  .chip.status { background: var(--accent-soft); color: var(--accent); }
+  .chip.done { background: var(--ok-soft); color: var(--ok); }
+  .chip.closed { background: #EBECF0; color: var(--muted); }
+  .icon-story, .icon-bug { width: 16px; height: 16px; border-radius: 3px; display: inline-block; flex: 0 0 16px; }
+  .icon-story { background: var(--ok); }
+  .icon-bug { background: var(--bug); border-radius: 50%; }
+  .col-title { font-size: 12px; font-weight: 700; color: var(--muted); margin: 16px 0 6px; }
+  details summary { cursor: pointer; color: var(--accent); font-size: 13px; font-weight: 700; }
+  .rules { margin: 8px 0 0; padding-left: 18px; }
+  .rules li { margin: 3px 0; }
+
+  /* ---------- sheet (new bug) ---------- */
+  .scrim { position: fixed; inset: 0; z-index: 20; background: rgba(9, 30, 66, .45); display: flex; align-items: flex-end; justify-content: center; }
+  .sheet { width: 100%; max-width: 560px; max-height: 92dvh; overflow: auto; background: var(--surface); border-radius: 14px 14px 0 0; padding: 16px 16px 24px; }
+  .field { margin: 0 0 12px; }
+  .field label { display: block; font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+  .field .hint { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .field input, .field select { width: 100%; height: 44px; padding: 0 10px; border: 1px solid #C1C7D0; border-radius: 6px; background: #fff; font-size: 16px; }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+
+  /* ---------- app under test ---------- */
+  .device { border: 6px solid #1E293B; border-radius: 22px; overflow: hidden; background: #fff; margin: 0 0 12px; }
+  .app-top { background: var(--rail); color: #fff; padding: 12px 14px 14px; }
+  .app-top .brand { font-weight: 800; font-size: 18px; }
+  .app-top .env { font: 600 11px var(--mono); background: rgba(255,255,255,.18); padding: 2px 6px; border-radius: 4px; float: right; margin-top: 3px; }
+  .journey { margin-top: 10px; background: rgba(255,255,255,.12); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+  .journey b { display: block; font-size: 15px; }
+  .app-body { padding: 14px; }
+  .inrow { display: flex; gap: 8px; }
+  .inrow input { flex: 1; min-width: 0; }
+  .pm { flex: 0 0 44px; height: 44px; border: 1px solid #C1C7D0; border-radius: 6px; background: var(--bg); font-weight: 700; }
+  .app-btn { width: 100%; min-height: 48px; border: 0; border-radius: 24px; background: var(--rail); color: #fff; font-weight: 700; font-size: 16px; }
+  .app-result { margin-top: 12px; border-radius: 10px; padding: 12px; text-align: center; background: var(--bg); min-height: 64px; }
+  .app-result .amount { font: 800 26px var(--sans); color: var(--rail); }
+  .app-result .err { color: var(--bug); font-weight: 700; }
+  .log { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .log td { padding: 7px 4px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .log td.r { text-align: right; }
+  .log .mono { font-size: 12.5px; }
+  .linkbtn { border: 0; background: none; color: var(--bug); font-weight: 700; font-size: 13px; padding: 6px 0 6px 6px; }
+
+  /* ---------- CI ---------- */
+  .pipe { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; margin: 0 0 8px; overflow: hidden; }
+  .pipe summary { list-style: none; display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; color: var(--ink); font-weight: 400; font-size: 14px; }
+  .pipe summary::-webkit-details-marker { display: none; }
+  .dot { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 11px; font-weight: 800; }
+  .dot.pass { background: var(--ok); }
+  .dot.fail { background: var(--bug); }
+  pre.term { margin: 0; padding: 12px; background: var(--term); color: var(--term-ink); font: 12px/1.6 var(--mono); overflow-x: auto; }
+  .term .p { color: #8FD18F; font-weight: 700; }
+  .term .f { color: #FF8A7A; font-weight: 700; }
+  .term .c { color: #8C96A8; }
+
+  /* ---------- full-screen moments ---------- */
+  .stage { flex: 1; padding: 28px 18px 40px; }
+  .stage h1 { font-size: 28px; line-height: 1.15; margin: 6px 0 12px; }
+  .kick { font: 700 14px var(--mono); color: var(--accent); }
+  .tools { list-style: none; padding: 0; margin: 16px 0; }
+  .tools li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .tools svg { width: 24px; height: 24px; color: var(--accent); }
+  .feed .msg { opacity: 0; animation: slidein .4s ease-out forwards; }
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0; }
+  .metric { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  .metric b { display: block; font: 800 20px var(--sans); }
+  .metric span { font-size: 12px; color: var(--muted); }
+  .metric.bad b { color: var(--bug); }
+  .metric.good b { color: var(--ok); }
+  .score { font: 800 64px/1 var(--sans); margin: 8px 0 4px; }
+  .score small { font-size: 22px; color: var(--muted); font-weight: 700; }
+  .breakdown { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .breakdown td { padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .breakdown td.r { text-align: right; font-family: var(--mono); white-space: nowrap; padding-left: 10px; }
+  .lb { list-style: none; padding: 0; margin: 8px 0 0; counter-reset: lb; }
+  .lb li { display: grid; grid-template-columns: 28px 1fr auto; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); counter-increment: lb; }
+  .lb li::before { content: counter(lb); color: var(--muted); font-family: var(--mono); }
+  .lb li.me { font-weight: 700; color: var(--accent); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .msg.new, .feed .msg { animation: none; opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+/* ======================================================================
+   Leaderboard (Supabase). Run supabase.sql once in the SQL editor, then fill in
+   url + anonKey (Project Settings -> API: the anon / publishable key, never the
+   service_role / secret key). Leave them empty to hide the leaderboard.
+   ====================================================================== */
+const LEADERBOARD = { url: "", anonKey: "", table: "qa_sim_scores" };
+
+(function () {
+  "use strict";
+  const root = document.getElementById("root");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---------------------------------------------------------------- people
+  const P = {
+    mia:     { name: "Mia",     role: "QA lead",         color: "#0F766E", init: "M" },
+    jonas:   { name: "Jonas",   role: "Product manager", color: "#6D3FC0", init: "J" },
+    lena:    { name: "Lena",    role: "Developer",       color: "#C2410C", init: "L" },
+    ci:      { name: "CI bot",  role: "",                color: "#475569", init: "CI" },
+    you:     { name: "You",     role: "Junior QA",       color: "#1F5AD6", init: "Y" },
+    support: { name: "Support", role: "",                color: "#0E7C5A", init: "S" },
+  };
+
+  // ---------------------------------------------------------------- icons
+  const I = {
+    chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>',
+    board: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="11" rx="1"/><rect x="17" y="4" width="4" height="7" rx="1"/></svg>',
+    app: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg>',
+    ci: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.5 12h4l5-6M11.5 12l5 6"/></svg>',
+  };
+
+  // ---------------------------------------------------------------- the refund rules
+  // Bugs: A = exactly 120 min pays 25 %, B = exactly 4.00 EUR is not paid,
+  //       R = exactly 60 min pays nothing (appears when A gets fixed).
+  function calc(price, delay, f) {
+    if (price < 0 || delay < 0) return { error: true };
+    const p = Math.round(price * 100);
+    const half = f.A ? delay > 120 : delay >= 120;
+    const quarter = f.R ? delay > 60 : delay >= 60;
+    let c = half ? p * 0.5 : quarter ? p * 0.25 : 0;
+    c = Math.round(c);
+    if (f.B ? c <= 400 : c < 400) c = 0;
+    return { cents: c };
+  }
+  const SPEC = { A: false, B: false, R: false };
+  const same = (a, b) => (a.error && b.error) || (!a.error && !b.error && a.cents === b.cents);
+  const eur = (c) => (c / 100).toFixed(2) + " €";
+  const out = (r) => (r.error ? "error" : eur(r.cents));
+  function classify(run) {
+    const spec = calc(run.price, run.delay, SPEC);
+    if (same(spec, run.res)) return null;
+    if (run.delay === 120 && run.flags.A) return "A";
+    if (run.delay === 60 && run.flags.R) return "R";
+    return "B";
+  }
+  const BUGINFO = {
+    A: { sev: "Major", title: "Refund is 25 % instead of 50 % at exactly 120 min" },
+    B: { sev: "Minor", title: "A refund of exactly 4.00 € is paid as 0.00 €" },
+    R: { sev: "Major", title: "Exactly 60 min delay pays 0.00 € instead of 25 %" },
+  };
+  const SEVS = ["Critical", "Major", "Minor", "Trivial"];
+
+  const BASE_SUITE = [
+    { name: "test_short_delay_gives_nothing", price: 80, delay: 30 },
+    { name: "test_delay_90_minutes", price: 80, delay: 90 },
+    { name: "test_delay_exactly_60_minutes", price: 80, delay: 60 },
+    { name: "test_delay_150_minutes", price: 80, delay: 150 },
+    { name: "test_small_refund_is_not_paid", price: 12, delay: 90 },
+    { name: "test_negative_price_is_rejected", price: -80, delay: 90 },
+  ];
+
+  // ---------------------------------------------------------------- state
+  let S;
+  function fresh() {
+    return {
+      screen: "start",
+      tab: "chat",
+      clock: 9 * 60,
+      n: 0,
+      flags: { A: true, B: true, R: false },
+      rIntroduced: false,
+      runs: [],
+      tickets: [],
+      nextKey: 143,
+      messages: [],
+      seen: 0,
+      animFrom: 0,
+      unread: { board: 0, app: 0, ci: 0 },
+      pipelines: [],
+      extraTests: [],
+      fix: { pending: [], readyAt: null, tickets: [] },
+      ciAfterFix: false,
+      pinged: false,
+      decision: null,
+      shipped: null,
+      falseAlarms: 0,
+      reports: {},
+      found: { A: false, B: false, R: false },
+      sheet: null,
+      form: { price: "80", delay: "" },
+      lastResult: null,
+      submitted: false,
+      lbRows: null,
+      lbError: "",
+      myNick: "",
+    };
+  }
+
+  const ver = (n) => "1.4." + n;
+  const hhmm = (m) => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function say(from, html, extra) {
+    S.messages.push(Object.assign({ from, html, time: S.clock, id: S.messages.length }, extra || {}));
+  }
+
+  // ---------------------------------------------------------------- time + events
+  function tick(min) {
+    S.clock += min;
+    events();
+  }
+  function events() {
+    if (S.decision) return;
+    if (S.fix.readyAt !== null && S.clock >= S.fix.readyAt && S.fix.readyAt <= 17 * 60) deliverBuild();
+    if (!S.pinged && S.clock >= 16 * 60 + 30) {
+      S.pinged = true;
+      say("jonas", "Release check: we ship at <b>17:00</b>. What do you recommend? Answer in the yellow box below.");
+    }
+    if (S.clock >= 17 * 60) decide("auto");
+  }
+
+  function deliverBuild() {
+    const fixed = S.fix.pending.slice();
+    const tickets = S.fix.tickets.slice();
+    S.n += 1;
+    fixed.forEach((id) => {
+      S.flags[id] = false;
+      if (id === "A" && !S.rIntroduced) { S.flags.R = true; S.rIntroduced = true; }
+    });
+    tickets.forEach((t) => {
+      t.status = "retest"; t.fixedIn = ver(S.n);
+      const run = S.runs[t.runId];
+      S.extraTests.push({ name: "test_" + t.key.toLowerCase().replace("-", "_"), price: run.price, delay: run.delay });
+    });
+    S.fix = { pending: [], readyAt: null, tickets: [] };
+    const keys = tickets.map((t) => t.key).join(" and ");
+    say("lena", `Build <b>${ver(S.n)}</b> is in test: fixed ${keys}. I checked the ticket cases by hand and added a regression test for each ticket. 🚀`);
+    say("ci", `New build ${ver(S.n)}. The full pipeline has not run on it yet.`);
+    S.unread.board += tickets.length;
+    S.unread.ci += 1;
+    S.unread.app += 1;
+  }
+
+  // ---------------------------------------------------------------- actions
+  function startShift() {
+    S.screen = "work";
+    S.pipelines.push(pipeline("lena", 8 * 60 + 40));
+    say("mia", "Welcome to RailBack! Today you test <b>RB-142</b>, the delay refund. Its rules are on the <b>Board</b>. Test build 1.4.0 in the <b>App</b> tab, and file a bug on the Board for every result that breaks the rules. Lena fixes what you report.");
+    say("jonas", "Morning! RB-142 goes out to all passengers at <b>17:00</b> today. When you're done testing, tell me if we can ship.");
+    say("lena", "CI is green on 1.4.0, so this should be a quick one 😉");
+    S.seen = S.animFrom = S.messages.length;
+    render();
+  }
+
+  function runApp() {
+    const price = parseFloat(S.form.price);
+    const delay = parseFloat(S.form.delay);
+    if (Number.isNaN(price) || Number.isNaN(delay)) { S.lastResult = { msg: "Enter a ticket price and a delay." }; render(); return; }
+    const res = calc(price, delay, S.flags);
+    S.runs.push({ id: S.runs.length, build: ver(S.n), flags: Object.assign({}, S.flags), price, delay, res, at: S.clock });
+    S.lastResult = { res };
+    tick(10);
+    render();
+  }
+
+  function pipeline(by, at) {
+    const tests = BASE_SUITE.concat(S.extraTests).map((t) => {
+      const got = calc(t.price, t.delay, S.flags);
+      const exp = calc(t.price, t.delay, SPEC);
+      return { name: t.name, pass: same(got, exp), got, exp };
+    });
+    return { id: 41 + S.pipelines.length, build: ver(S.n), by, at, tests };
+  }
+  function runPipeline() {
+    const p = pipeline("you", S.clock);
+    S.pipelines.push(p);
+    if (S.n > 0) S.ciAfterFix = true;
+    const failed = p.tests.filter((t) => !t.pass);
+    tick(20);
+    if (failed.length && !S.decision) say("ci", `Pipeline #${p.id} on ${p.build} <b>failed</b>: ${failed.map((t) => "<code>" + t.name + "</code>").join(", ")}`);
+    render();
+  }
+
+  function fileBug(data) {
+    const run = S.runs[data.runId];
+    const t = { key: "RB-" + S.nextKey++, title: data.title, sev: data.sev, runId: data.runId, expected: data.expected, status: "todo", bug: null };
+    S.tickets.push(t);
+    S.sheet = null;
+    S.tab = "chat";
+    const id = classify(run);
+    const spec = calc(run.price, run.delay, SPEC);
+    const runTxt = `${run.price.toFixed(2)} € and ${run.delay} min`;
+    if (!id) {
+      t.status = "closed"; t.note = "Not a bug";
+      S.falseAlarms += 1;
+      say("lena", `${t.key}: I tried ${runTxt}. The app gives ${out(run.res)}, and RB-142 says the same. Not a bug, closing it.`);
+    } else if (S.found[id]) {
+      t.status = "closed"; t.note = "Duplicate";
+      const first = S.tickets.find((x) => x.bug === id);
+      say("lena", `${t.key} is the same problem as ${first ? first.key : "an earlier ticket"}. Closing it as a duplicate.`);
+    } else if (!S.flags[id]) {
+      t.status = "closed"; t.note = "Already fixed";
+      say("lena", `${t.key}: that run was on build ${run.build}, and it's already fixed in ${ver(S.n)}. Please retest on the current build.`);
+    } else {
+      t.bug = id; t.status = "progress";
+      S.found[id] = true;
+      const expectedOk = !spec.error && Math.round(data.expected * 100) === spec.cents;
+      const want = SEVS.indexOf(BUGINFO[id].sev), got = SEVS.indexOf(data.sev);
+      const sevPts = want === got ? 2 : Math.abs(want - got) === 1 ? 1 : 0;
+      const short = data.title.trim().length < 12;
+      S.reports[id] = { expectedOk, sevPts, short };
+      let txt = `Thanks! ${t.key}: I can reproduce it with ${runTxt}. Working on a fix.`;
+      if (!expectedOk) txt += ` One thing: RB-142 says ${out(spec)} here, not ${data.expected.toFixed(2)} €. I'll follow the ticket.`;
+      if (short) txt += ` Next time a longer title helps me, e.g. "${BUGINFO[id].title}".`;
+      say("lena", txt);
+      if (sevPts < 2) say("mia", `Small note on ${t.key}: I'd call it <b>${BUGINFO[id].sev}</b>. ${BUGINFO[id].sev === "Major" ? "Passengers get the wrong amount in a normal case, but the app still works." : "Only one exact amount is affected, and the money is small."}`);
+      S.fix.pending.push(id);
+      S.fix.tickets.push(t);
+      if (S.fix.readyAt === null) {
+        S.fix.readyAt = S.clock + 15 + 60;
+        say("lena", `New build in about 1 hour (around ${hhmm(S.fix.readyAt)}).`, { action: "wait" });
+      } else {
+        S.fix.readyAt += 15;
+        say("lena", `I'll put ${t.key} into the same build. New ETA: ${hhmm(S.fix.readyAt)}.`, { action: "wait" });
+      }
+    }
+    tick(15);
+    render();
+  }
+
+  function waitForBuild() {
+    if (S.fix.readyAt === null) return;
+    const target = Math.min(S.fix.readyAt, 17 * 60);
+    if (target > S.clock) tick(target - S.clock); else events();
+    render();
+  }
+
+  function decide(kind) {
+    if (S.decision) return;
+    S.decision = kind;
+    S.shipped = { n: S.n, flags: Object.assign({}, S.flags) };
+    S.screen = "release";
+    window.scrollTo(0, 0);
+    render();
+  }
+
+  // ---------------------------------------------------------------- production + scoring
+  function production() {
+    const f = S.shipped.flags;
+    const k = S.decision;
+    const reach = k === "hold" ? 0 : k === "staged" ? 0.05 : 1;
+    const base = { A: [480, 1900], R: [1080, 750], B: [120, 400] }; // passengers, cents too little each
+    let people = 0, cents = 0;
+    const msgs = [];
+    ["A", "R", "B"].forEach((id) => {
+      if (!f[id] || reach === 0) return;
+      const n = Math.max(1, Math.round(base[id][0] * reach));
+      people += n; cents += n * base[id][1];
+    });
+    if (reach > 0) {
+      if (f.A) msgs.push(["support", "“My train was 2 hours late and the app gave me 25 %. Your own website says 50 %!”"]);
+      if (f.R) msgs.push(["support", "“Exactly 60 minutes late and the refund is 0.00 €? Seriously?”"]);
+      if (f.B) msgs.push(["support", "“The app says 0.00 € for my 16 € ticket. 25 % of 16 € is 4 €.”"]);
+    }
+    const majors = f.A || f.R;
+    let rating = 4.6;
+    if (reach === 1) rating -= (f.A ? 0.4 : 0) + (f.R ? 0.5 : 0) + (f.B ? 0.05 : 0);
+    if (reach > 0 && reach < 1 && majors) rating -= 0.05;
+    if (k === "auto") msgs.unshift(["jonas", "I didn't hear back from QA by 17:00, so I shipped to everyone."]);
+    if (reach > 0 && !msgs.some((m) => m[0] === "support")) msgs.push(["support", "Quiet morning. No complaints about refunds. ✅"]);
+    if (k === "staged" && majors) msgs.push(["jonas", "The first complaints came in at 5 %. We rolled back after one hour. Good thing we didn't ship to everyone."]);
+    if (k === "staged" && !majors) msgs.push(["jonas", f.B ? "5 % went fine, and the 4.00 € case is in the release notes. Rolling out to everyone today. Nice work!" : "5 % went fine. Rolling out to everyone today. Nice work!"]);
+    if ((k === "all" || k === "auto") && majors) msgs.push(["jonas", "Support has been busy since 6 am. We're rolling back and preparing a hotfix. 😬"]);
+    if ((k === "all" || k === "auto") && !majors) msgs.push(["jonas", f.B ? "Everything is live. A few tickets about the 4.00 € case, but nothing big." : "Everything is live, and support is quiet. 👍"]);
+    if (k === "hold" && majors) msgs.push(["jonas", "Good call to hold it. We ship tomorrow, after the fixes."]);
+    if (k === "hold" && !majors) msgs.push(["jonas", f.B ? "We held the release for one minor bug. Marketing had to move the campaign. Next time let's talk about the risk first." : "We held a release without any known bug? The campaign moved to next week…"]);
+    return { people, cents, rating: Math.max(1, rating), msgs };
+  }
+
+  function score() {
+    const f = S.shipped.flags;
+    const rows = [];
+    rows.push(["Found: exactly 120 min pays 25 %", S.found.A ? 30 : 0, 30]);
+    rows.push(["Found: a 4.00 € refund pays nothing", S.found.B ? 10 : 0, 10]);
+    if (S.rIntroduced) rows.push(["Found the regression: 60 min pays nothing", S.found.R ? 15 : 0, 15]);
+    else rows.push(["Regression after the 120-min fix (never appeared: the 120-min bug was not reported)", 0, 15]);
+    let rep = 0;
+    Object.values(S.reports).forEach((r) => { rep += Math.max(0, (r.expectedOk ? 3 : 0) + r.sevPts - (r.short ? 1 : 0)); });
+    rows.push(["Bug report quality (expected value, severity, title)", Math.min(15, rep), 15]);
+    rows.push(["Ran the full pipeline after a fix", S.ciAfterFix ? 10 : 0, 10]);
+    const majors = f.A || f.R;
+    const k = S.decision;
+    let d;
+    if (majors) d = { hold: 20, staged: 8, all: 0, auto: 0 }[k];
+    else if (f.B) d = { staged: 20, all: 10, hold: 6, auto: 5 }[k];
+    else d = { staged: 20, all: 16, hold: 6, auto: 8 }[k];
+    rows.push([k === "auto" ? "Release recommendation (none given by 17:00)" : "Release recommendation", d, 20]);
+    if (S.falseAlarms) rows.push([`False alarms (${S.falseAlarms})`, -5 * S.falseAlarms, 0]);
+    const total = Math.max(0, Math.min(100, rows.reduce((s, r) => s + r[1], 0)));
+    return { rows, total };
+  }
+
+  // ---------------------------------------------------------------- leaderboard
+  const lbOn = () => Boolean(LEADERBOARD.url && LEADERBOARD.anonKey);
+  function lbHeaders() {
+    // Legacy anon keys are JWTs ("eyJ..."); new publishable keys ("sb_publishable_...") go in apikey only.
+    const h = { apikey: LEADERBOARD.anonKey, "Content-Type": "application/json" };
+    if (LEADERBOARD.anonKey.startsWith("eyJ")) h.Authorization = "Bearer " + LEADERBOARD.anonKey;
+    return h;
+  }
+  async function lbLoad() {
+    try {
+      const r = await fetch(`${LEADERBOARD.url}/rest/v1/${LEADERBOARD.table}?select=nickname,score,created_at&order=score.desc,created_at.asc&limit=10`, { headers: lbHeaders() });
+      if (!r.ok) throw new Error(String(r.status));
+      S.lbRows = await r.json(); S.lbError = "";
+    } catch (e) { S.lbError = "The leaderboard can't be reached right now."; }
+    if (S.screen === "report") render();
+  }
+  async function lbSubmit(nick, total) {
+    try {
+      const r = await fetch(`${LEADERBOARD.url}/rest/v1/${LEADERBOARD.table}`, {
+        method: "POST", headers: Object.assign({ Prefer: "return=minimal" }, lbHeaders()),
+        body: JSON.stringify({ nickname: nick, score: total }),
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      S.submitted = true; S.myNick = nick; S.lbError = "";
+      await lbLoad();
+    } catch (e) { S.lbError = "Your score could not be saved. Try again in a moment."; render(); }
+  }
+
+  // ---------------------------------------------------------------- views
+  function av(who) { const p = P[who]; return `<div class="av" style="background:${p.color}" aria-hidden="true">${p.init}</div>`; }
+
+  function header() {
+    const late = S.clock >= 16 * 60 + 30;
+    return `<header class="top">
+      <div class="clock${late ? " late" : ""}" aria-label="Time">${hhmm(S.clock)}</div>
+      <div class="buildpill">Build <b>${ver(S.n)}</b> in test</div>
+      <div class="release">Release<b>17:00</b></div>
+    </header>`;
+  }
+
+  function tabs() {
+    const items = [["chat", "Chat"], ["board", "Board"], ["app", "App"], ["ci", "CI"]];
+    return `<nav class="tabs" role="tablist">${items.map(([k, label]) => {
+      const n = k === "chat" ? S.messages.length - S.seen : S.unread[k];
+      return `<button class="tab" role="tab" aria-selected="${S.tab === k}" data-act="tab" data-v="${k}">${I[k]}${label}${n > 0 && S.tab !== k ? `<span class="badge">${n}</span>` : ""}</button>`;
+    }).join("")}</nav>`;
+  }
+
+  function openBugsText() {
+    const open = S.tickets.filter((t) => t.bug && t.status !== "done" && t.status !== "closed");
+    if (!open.length) return "No open bug tickets.";
+    return "Open bug tickets: " + open.map((t) => `${t.key} (${t.sev}${t.status === "retest" ? ", fixed, not verified yet" : ""})`).join(", ") + ".";
+  }
+
+  function viewChat() {
+    const lastWait = S.messages.reduce((a, m) => (m.action === "wait" ? m.id : a), -1);
+    const msgs = S.messages.map((m) => {
+      const p = P[m.from];
+      let act = "";
+      if (m.action === "wait" && m.id === lastWait && S.fix.readyAt !== null) act = `<div class="row-btns"><button class="btn ghost" data-act="wait">Skip ahead to the new build</button></div>`;
+      return `<div class="msg${m.id >= S.animFrom ? " new" : ""}">${av(m.from)}<div><div class="who">${p.name}<span>${p.role ? p.role + ", " : ""}${hhmm(m.time)}</span></div><div class="text">${m.html}</div>${act}</div></div>`;
+    }).join("");
+    return `<div aria-live="polite">${msgs}</div>
+      <div class="decision" role="region" aria-label="Release recommendation">
+        <p><b>Jonas is waiting for your release recommendation.</b></p>
+        <p class="small">Build ${ver(S.n)}. ${openBugsText()}</p>
+        <div class="row-btns">
+          <button class="btn" data-act="decide" data-v="all">Ship to everyone</button>
+          <button class="btn" data-act="decide" data-v="staged">Ship to 5 % first</button>
+          <button class="btn danger" data-act="decide" data-v="hold">Hold the release</button>
+        </div>
+      </div>`;
+  }
+
+  function ticketCard(t) {
+    const statusTxt = { todo: "To do", progress: "In progress", retest: "Ready for retest", done: "Done", closed: t.note || "Closed" }[t.status];
+    const cls = t.status === "done" ? "done" : t.status === "closed" ? "closed" : "status";
+    const run = S.runs[t.runId];
+    return `<div class="ticket">
+      <div class="t-head"><span class="icon-bug" aria-hidden="true"></span><span class="key">${t.key}</span><span>Bug</span></div>
+      <div class="t-title">${esc(t.title)}</div>
+      <div class="t-meta"><span class="chip ${t.sev}">${t.sev}</span><span class="chip ${cls}">${statusTxt}</span>
+        <span class="muted">Run #${run.id + 1} on ${run.build}${t.fixedIn ? `, fixed in ${t.fixedIn}` : ""}</span></div>
+      ${t.status === "retest" ? `<div class="row-btns"><button class="btn ghost" data-act="verify" data-v="${t.key}">Mark as verified</button></div>` : ""}
+    </div>`;
+  }
+
+  function viewBoard() {
+    const groups = [["retest", "Ready for retest"], ["progress", "In progress"], ["todo", "To do"], ["done", "Done"], ["closed", "Closed"]];
+    const cols = groups.map(([k, label]) => {
+      const ts = S.tickets.filter((t) => t.status === k);
+      return ts.length ? `<div class="col-title">${label}</div>${ts.map(ticketCard).join("")}` : "";
+    }).join("");
+    return `
+      <div class="ticket">
+        <div class="t-head"><span class="icon-story" aria-hidden="true"></span><span class="key">RB-142</span><span>Story, in test</span></div>
+        <div class="t-title">As a passenger, I want money back when my train is late.</div>
+        <ul class="rules">
+          <li>A delay of 60 minutes or more pays back 25 % of the ticket price.</li>
+          <li>A delay of 120 minutes or more pays back 50 %.</li>
+          <li>A refund below 4.00 € is not paid out (0.00 €).</li>
+          <li>A negative price or delay shows an error.</li>
+        </ul>
+      </div>
+      <button class="btn block" data-act="newbug" ${S.runs.length ? "" : "disabled"}>New bug</button>
+      ${S.runs.length ? "" : `<p class="small muted" style="margin-top:6px">A bug report needs a test run. Test the app first.</p>`}
+      ${cols || `<p class="muted small" style="margin-top:14px">No bug tickets yet.</p>`}`;
+  }
+
+  function viewApp() {
+    const r = S.lastResult;
+    let result = `<span class="muted">Enter your trip and request a refund.</span>`;
+    if (r && r.msg) result = `<span class="err">${r.msg}</span>`;
+    else if (r && r.res.error) result = `<span class="err">Please check the price and the delay.</span>`;
+    else if (r && r.res.cents === 0) result = `<b>No refund for this trip</b><div class="small muted">0.00 €</div>`;
+    else if (r) result = `<div class="small muted">Refund approved</div><div class="amount">${eur(r.res.cents)}</div>`;
+    const rows = S.runs.slice().reverse().map((x) => `<tr>
+        <td class="mono">#${x.id + 1}</td><td class="mono">${x.build}</td>
+        <td class="mono">${x.price.toFixed(2)} €, ${x.delay} min</td><td class="mono r">${out(x.res)}</td>
+        <td class="r"><button class="linkbtn" data-act="newbug" data-v="${x.id}">Report</button></td></tr>`).join("");
+    return `
+      <div class="device">
+        <div class="app-top"><span class="env">test build ${ver(S.n)}</span><div class="brand">RailBack</div>
+          <div class="journey"><b>Bremen Hbf to Hamburg Hbf</b>Train 1726, today</div></div>
+        <div class="app-body">
+          <div class="field"><label for="price">Ticket price (€)</label>
+            <div class="inrow"><input id="price" type="number" inputmode="decimal" step="0.01" value="${esc(S.form.price)}"><button class="pm" data-act="sign" data-v="price" aria-label="Switch the sign of the price">±</button></div></div>
+          <div class="field"><label for="delay">Delay at arrival (min)</label>
+            <div class="inrow"><input id="delay" type="number" inputmode="numeric" step="1" placeholder="e.g. 75" value="${esc(S.form.delay)}"><button class="pm" data-act="sign" data-v="delay" aria-label="Switch the sign of the delay">±</button></div></div>
+          <button class="app-btn" data-act="run">Request refund</button>
+          <div class="app-result" aria-live="polite">${result}</div>
+        </div>
+      </div>
+      <h3>Your test log <span class="muted small">(every run takes 10 min of your day)</span></h3>
+      ${rows ? `<table class="log"><tbody>${rows}</tbody></table>` : `<p class="muted small">No runs yet.</p>`}`;
+  }
+
+  function termLog(p) {
+    const lines = p.tests.map((t) => {
+      const dots = ".".repeat(Math.max(2, 36 - t.name.length));
+      return `${t.name} ${dots} ${t.pass ? '<span class="p">PASSED</span>' : '<span class="f">FAILED</span>'}${t.pass ? "" : `\n<span class="c">    expected ${out(t.exp)}, got ${out(t.got)}</span>`}`;
+    }).join("\n");
+    const failed = p.tests.filter((t) => !t.pass).length;
+    return `<pre class="term"><span class="c">$ pytest -v   # build ${p.build}</span>\n${lines}\n${failed ? `<span class="f">${failed} failed</span>, ` : ""}<span class="p">${p.tests.length - failed} passed</span></pre>`;
+  }
+
+  function viewCI() {
+    const suite = BASE_SUITE.concat(S.extraTests);
+    const list = S.pipelines.slice().reverse().map((p, i) => {
+      const failed = p.tests.filter((t) => !t.pass).length;
+      return `<details class="pipe"${i === 0 ? " open" : ""}><summary><span class="dot ${failed ? "fail" : "pass"}" aria-hidden="true">${failed ? "✕" : "✓"}</span>
+        <span>#${p.id} on <b class="mono">${p.build}</b><br><span class="small muted">${failed ? failed + " failed, " : ""}${p.tests.length - failed} passed, started by ${P[p.by].name}</span></span>
+        <span class="small muted mono">${hhmm(p.at)}</span></summary>${termLog(p)}</details>`;
+    }).join("");
+    const ranOnCurrent = S.pipelines.some((p) => p.build === ver(S.n));
+    return `
+      <div class="panel">
+        <p><b>Automated test suite</b> <span class="muted small">(${suite.length} tests, written by the developers)</span></p>
+        <details><summary>Show the tests</summary><ul class="rules small">${suite.map((t) => `<li><code>${t.name}</code>: ${t.price.toFixed(2)} €, ${t.delay} min</li>`).join("")}</ul></details>
+        <div class="row-btns"><button class="btn" data-act="pipeline">Run pipeline on ${ver(S.n)}</button></div>
+        <p class="small muted" style="margin:6px 0 0">${ranOnCurrent ? "The pipeline already ran on this build." : "Not run on this build yet."} A full run takes 20 min of your day.</p>
+      </div>
+      ${list}`;
+  }
+
+  function sheetHtml() {
+    const pre = S.sheet.runId;
+    const opts = S.runs.slice().reverse().map((x) => `<option value="${x.id}"${x.id === pre ? " selected" : ""}>#${x.id + 1}  ${x.build}: ${x.price.toFixed(2)} €, ${x.delay} min → ${out(x.res)}</option>`).join("");
+    return `<div class="scrim" data-act="closesheet"><div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" data-stop="1">
+      <h2 id="sheetTitle">New bug</h2>
+      <div class="field"><label for="b-title">Title</label><input id="b-title" maxlength="90" placeholder="What is wrong, and when?"></div>
+      <div class="field"><label for="b-run">Steps to reproduce: your test run</label><select id="b-run">${opts}</select>
+        <div class="hint">Lena repeats exactly this run in the app.</div></div>
+      <div class="field"><label for="b-exp">Expected refund (€), according to RB-142</label><input id="b-exp" type="number" inputmode="decimal" step="0.01" placeholder="e.g. 40.00"></div>
+      <div class="field"><label for="b-sev">Severity</label><select id="b-sev"><option value="">Choose…</option>
+        <option>Critical</option><option>Major</option><option>Minor</option><option>Trivial</option></select>
+        <div class="hint">Critical: the app is unusable or everyone is affected. Major: a wrong result in a normal case. Minor: a rare case or a small impact. Trivial: cosmetic.</div></div>
+      <p class="small" id="b-err" style="color:var(--bug)" hidden></p>
+      <div class="row-btns"><button class="btn" data-act="filebug">File bug (15 min)</button><button class="btn ghost" data-act="closesheet">Cancel</button></div>
+    </div></div>`;
+  }
+
+  function viewStart() {
+    return `<section class="stage">
+      <p class="kick">08:55, RailBack office, Bremen</p>
+      <h1>Your first day as a Junior QA Tester</h1>
+      <p>RailBack's app pays passengers money back when their train is late. A new refund feature goes out to all passengers at <b>17:00</b> today. You are the last check before it does.</p>
+      <ul class="tools">
+        <li>${I.chat}<span><b>Chat.</b> Your team talks to you here, and here you give your release recommendation.</span></li>
+        <li>${I.board}<span><b>Board.</b> The ticket with the rules, and your bug reports.</span></li>
+        <li>${I.app}<span><b>App.</b> The new test build. Use it like a passenger, think like a tester.</span></li>
+        <li>${I.ci}<span><b>CI.</b> The developers' automated tests.</span></li>
+      </ul>
+      <p class="muted small">Every action takes time from your day. About 10 minutes to play.</p>
+      <button class="btn block" data-act="start">Start your shift</button>
+    </section>`;
+  }
+
+  function viewRelease() {
+    const k = S.decision;
+    const b = ver(S.shipped.n);
+    const lines = {
+      all: `You recommended shipping to everyone. Build ${b} goes out to all passengers.`,
+      staged: `You recommended a staged rollout. Build ${b} goes out to 5 % of the passengers, and the rest follow if nothing goes wrong.`,
+      hold: `You recommended holding the release. Build ${b} stays in test.`,
+      auto: `Jonas got no answer from QA by 17:00 and shipped build ${b} to all passengers.`,
+    };
+    return `<section class="stage">
+      <p class="kick">17:00</p>
+      <h1>${k === "hold" ? "Release on hold" : "Release"}</h1>
+      <p>${lines[k]}</p>
+      <p class="muted">Let's see what the passengers say.</p>
+      <button class="btn block" data-act="morning">Next morning</button>
+    </section>`;
+  }
+
+  function viewMorning() {
+    const pr = S.prod;
+    const feed = pr.msgs.map((m, i) => `<div class="msg" style="animation-delay:${reduceMotion ? 0 : i * 0.7}s">${av(m[0])}<div><div class="who">${P[m[0]].name}<span>${m[0] === "support" ? "from the app store" : P[m[0]].role}</span></div><div class="text">${m[1]}</div></div></div>`).join("");
+    return `<section class="stage">
+      <p class="kick">Next morning, 09:00</p>
+      <h1>${pr.people ? "The passengers found what slipped through" : "A calm morning"}</h1>
+      <div class="feed">${feed}</div>
+      <div class="metrics">
+        <div class="metric ${pr.people ? "bad" : "good"}"><b>${pr.people.toLocaleString("en")}</b><span>passengers got a wrong refund</span></div>
+        <div class="metric ${pr.cents ? "bad" : "good"}"><b>${Math.round(pr.cents / 100).toLocaleString("en")} €</b><span>paid too little</span></div>
+        <div class="metric ${pr.rating < 4.5 ? "bad" : "good"}"><b>${pr.rating.toFixed(1)} ★</b><span>app rating (was 4.6)</span></div>
+      </div>
+      <button class="btn block" data-act="report">See your day report</button>
+    </section>`;
+  }
+
+  function viewReport() {
+    const sc = S.sc;
+    const t = sc.total;
+    const title = t >= 90 ? "Release hero" : t >= 70 ? "Solid first day" : t >= 40 ? "Good start" : "Rough first day";
+    const rows = sc.rows.map((r) => `<tr><td>${r[0]}</td><td class="r">${r[1] > 0 ? "+" : ""}${r[1]}${r[2] ? " / " + r[2] : ""}</td></tr>`).join("");
+    let lb = "";
+    if (lbOn()) {
+      const list = S.lbRows ? `<ol class="lb">${S.lbRows.map((x) => `<li class="${S.submitted && x.nickname === S.myNick ? "me" : ""}"><span>${esc(x.nickname)}</span><span class="mono">${x.score}</span></li>`).join("")}</ol>` : (S.lbError ? "" : `<p class="small muted">Loading…</p>`);
+      lb = `<div class="panel"><h3 style="margin-top:0">Class leaderboard</h3>
+        ${S.submitted ? "" : `<div class="field"><label for="nick">Your nickname</label><div class="inrow"><input id="nick" maxlength="16" placeholder="max. 16 characters"><button class="btn" data-act="submit">Save score</button></div></div>`}
+        ${S.lbError ? `<p class="small" style="color:var(--bug)">${S.lbError}</p>` : ""}
+        ${list}</div>`;
+    }
+    return `<section class="stage">
+      <p class="kick">Your day report</p>
+      <h1>${title}</h1>
+      <p class="score">${t}<small> / 100</small></p>
+      <div class="panel"><table class="breakdown"><tbody>${rows}</tbody></table></div>
+      ${lb}
+      <div class="panel"><h3 style="margin-top:0">What a junior QA tester does</h3>
+        <ul class="rules">
+          <li>Tests the borders of every rule, not only the easy middle values.</li>
+          <li>Writes bug reports that anyone can repeat: exact input, expected and actual result, severity.</li>
+          <li>Runs the whole test suite after every fix, because a fix can break an old case.</li>
+          <li>Knows that a green CI only proves what the tests check.</li>
+          <li>Gives an honest picture of the risk before a release.</li>
+        </ul></div>
+      <button class="btn block" data-act="restart">Play again</button>
+    </section>`;
+  }
+
+  function render() {
+    let html;
+    if (S.screen === "start") html = viewStart();
+    else if (S.screen === "release") html = viewRelease();
+    else if (S.screen === "morning") html = viewMorning();
+    else if (S.screen === "report") html = viewReport();
+    else {
+      const body = { chat: viewChat, board: viewBoard, app: viewApp, ci: viewCI }[S.tab]();
+      html = header() + `<main class="content">${body}</main>` + tabs() + (S.sheet ? sheetHtml() : "");
+      if (S.tab === "chat") { S.seen = S.messages.length; S.animFrom = S.messages.length; }
+    }
+    root.innerHTML = html;
+    if (S.screen === "work" && S.tab === "chat" && !S.sheet) window.scrollTo(0, document.body.scrollHeight);
+    if (S.sheet) { const f = document.getElementById("b-title"); if (f) f.focus(); }
+  }
+
+  // ---------------------------------------------------------------- input handling
+  root.addEventListener("input", (e) => {
+    if (e.target.id === "price" || e.target.id === "delay") S.form[e.target.id] = e.target.value;
+  });
+  root.addEventListener("click", (e) => {
+    const el = e.target.closest("[data-act]");
+    if (!el) return;
+    if (el.classList.contains("scrim") && e.target !== el) return;
+    const act = el.dataset.act, v = el.dataset.v;
+    switch (act) {
+      case "start": startShift(); break;
+      case "tab":
+        S.tab = v;
+        if (v !== "chat") S.unread[v] = 0;
+        window.scrollTo(0, 0);
+        render(); break;
+      case "sign": {
+        const cur = S.form[v] || "";
+        S.form[v] = cur === "" ? "" : cur.startsWith("-") ? cur.slice(1) : "-" + cur;
+        render(); document.getElementById(v).focus(); break;
+      }
+      case "run": runApp(); break;
+      case "pipeline": runPipeline(); break;
+      case "newbug": S.sheet = { runId: v !== undefined ? Number(v) : S.runs.length - 1 }; render(); break;
+      case "closesheet": S.sheet = null; render(); break;
+      case "filebug": {
+        const title = document.getElementById("b-title").value.trim();
+        const runId = Number(document.getElementById("b-run").value);
+        const exp = parseFloat(document.getElementById("b-exp").value);
+        const sev = document.getElementById("b-sev").value;
+        const err = document.getElementById("b-err");
+        if (!title || Number.isNaN(exp) || !sev) {
+          err.hidden = false;
+          err.textContent = "Fill in the title, the expected refund and the severity.";
+          return;
+        }
+        fileBug({ title, runId, expected: exp, sev });
+        break;
+      }
+      case "wait": waitForBuild(); break;
+      case "verify": { const t = S.tickets.find((x) => x.key === v); if (t) t.status = "done"; tick(5); render(); break; }
+      case "decide":
+        say("you", { all: "Ship to everyone.", staged: "Ship to 5 % of the passengers first, then the rest.", hold: "Hold the release." }[v]);
+        decide(v); break;
+      case "morning": S.prod = production(); S.screen = "morning"; window.scrollTo(0, 0); render(); break;
+      case "report":
+        S.sc = score(); S.screen = "report"; window.scrollTo(0, 0); render();
+        if (lbOn()) lbLoad();
+        break;
+      case "submit": {
+        const nick = document.getElementById("nick").value.trim().slice(0, 16);
+        if (!nick) { S.lbError = "Enter a nickname first."; render(); return; }
+        lbSubmit(nick, S.sc.total); break;
+      }
+      case "restart": S = fresh(); window.scrollTo(0, 0); render(); break;
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && S.sheet) { S.sheet = null; render(); }
+    if (e.key === "Enter" && (e.target.id === "price" || e.target.id === "delay")) runApp();
+  });
+
+  S = fresh();
+  render();
+})();
+</script>
+</body>
+</html>
