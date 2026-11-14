@@ -34,7 +34,9 @@ The release goes out at 17:00. Until then you work in a small QA workspace:
 
 There are no quiz questions. Bugs you report get fixed in a new build (and a fix can break something
 else). Bugs you miss reach the passengers: the next morning shows the complaints, the money and the
-app rating. The day report scores what you did (max. 100 points).
+app rating. The day report scores what you did (max. 100 points). The release recommendation is
+judged on the bugs you reported and that are still open, so holding the release without a reason
+does not get full points.
 
 ## Files
 
@@ -54,7 +56,19 @@ app rating. The day report scores what you did (max. 100 points).
 3. Put both at the top of the script in `index.html`:
    `const LEADERBOARD = { url: "https://xxxx.supabase.co", anonKey: "...", table: "qa_sim_scores" };`
 
-Without these two values the leaderboard is simply hidden. Rude nicknames can be deleted in the
-Supabase **Table Editor**.
+Without these two values the leaderboard is simply hidden. `supabase.sql` can be run again safely.
+
+At the end of the day report players save their score with a nickname. The leaderboard shows the
+top 10; a player outside the top 10 still sees their own score.
+
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="screenshots/leaderboard-save.png" width="250" alt="Day report: nickname field and Save score button above the class leaderboard"><br>Saving a score</td>
+    <td align="center" width="50%"><img src="screenshots/leaderboard.png" width="250" alt="Class leaderboard with the player's own row highlighted"><br>Your row is highlighted</td>
+  </tr>
+</table>
+
+To remove test scores or rude nicknames, use the Supabase **Table Editor** or run in the SQL Editor:
+`delete from public.qa_sim_scores where nickname in ('name1', 'name2');`
 
 The practice files for the tutorial are in [sdo-testing-lab](https://github.com/uhuseynov/sdo-testing-lab).

@@ -9,6 +9,9 @@ create table if not exists public.qa_sim_scores (
 alter table public.qa_sim_scores enable row level security;
 
 -- Everyone may read the leaderboard and add a score, nobody may change or delete scores.
+-- (The drop lines make the script safe to run again.)
+drop policy if exists "read scores" on public.qa_sim_scores;
+drop policy if exists "add a score" on public.qa_sim_scores;
 create policy "read scores" on public.qa_sim_scores
   for select to anon using (true);
 create policy "add a score" on public.qa_sim_scores

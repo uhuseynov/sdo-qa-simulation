@@ -286,6 +286,8 @@ const LEADERBOARD = { url: "https://rglnmzvlyeduhskdrjtj.supabase.co", anonKey: 
       lbRows: null,
       lbError: "",
       myNick: "",
+      saving: false,
+      nickDraft: "",
     };
   }
 
@@ -391,9 +393,6 @@ const LEADERBOARD = { url: "https://rglnmzvlyeduhskdrjtj.supabase.co", anonKey: 
       t.status = "closed"; t.note = "Duplicate";
       const first = S.tickets.find((x) => x.bug === id);
       say("lena", `${t.key} is the same problem as ${first ? first.key : "an earlier ticket"}. Closing it as a duplicate.`);
-    } else if (!S.flags[id]) {
-      t.status = "closed"; t.note = "Already fixed";
-      say("lena", `${t.key}: that run was on build ${run.build}, and it's already fixed in ${ver(S.n)}. Please retest on the current build.`);
     } else {
       t.bug = id; t.status = "progress";
       S.found[id] = true;
@@ -409,22 +408,24 @@ const LEADERBOARD = { url: "https://rglnmzvlyeduhskdrjtj.supabase.co", anonKey: 
       if (sevPts < 2) say("mia", `Small note on ${t.key}: I'd call it <b>${BUGINFO[id].sev}</b>. ${BUGINFO[id].sev === "Major" ? "Passengers get the wrong amount in a normal case, but the app still works." : "Only one exact amount is affected, and the money is small."}`);
       S.fix.pending.push(id);
       S.fix.tickets.push(t);
+      let eta;
       if (S.fix.readyAt === null) {
         S.fix.readyAt = S.clock + 15 + 60;
-        say("lena", `New build in about 1 hour (around ${hhmm(S.fix.readyAt)}).`, { action: "wait" });
+        eta = `New build in about 1 hour (around ${hhmm(S.fix.readyAt)}).`;
       } else {
         S.fix.readyAt += 15;
-        say("lena", `I'll put ${t.key} into the same build. New ETA: ${hhmm(S.fix.readyAt)}.`, { action: "wait" });
+        eta = `I'll put ${t.key} into the same build. New ETA: ${hhmm(S.fix.readyAt)}.`;
       }
+      if (S.fix.readyAt > 17 * 60) say("lena", eta + " That's after the 17:00 release, so this fix won't make it today.");
+      else say("lena", eta, { action: "wait" });
     }
     tick(15);
     render();
   }
 
   function waitForBuild() {
-    if (S.fix.readyAt === null) return;
-    const target = Math.min(S.fix.readyAt, 17 * 60);
-    if (target > S.clock) tick(target - S.clock); else events();
+    if (S.fix.readyAt === null || S.fix.readyAt > 17 * 60) return;
+    if (S.fix.readyAt > S.clock) tick(S.fix.readyAt - S.clock); else events();
     render();
   }
 
@@ -438,8 +439,15 @@ const LEADERBOARD = { url: "https://rglnmzvlyeduhskdrjtj.supabase.co", anonKey: 
   }
 
   // ---------------------------------------------------------------- production + scoring
+  // What QA knew at release time: bugs that were reported and are still in the shipped build.
+  function knownOpen() {
+    const f = S.shipped.flags;
+    return { major: (f.A && S.found.A) || (f.R && S.found.R), minor: f.B && S.found.B };
+  }
+
   function production() {
     const f = S.shipped.flags;
+    const known = knownOpen();
     const k = S.decision;
     const reach = k === "hold" ? 0 : k === "staged" ? 0.05 : 1;
     const base = { A: [480, 1900], R: [1080, 750], B: [120, 400] }; // passengers, cents too little each
@@ -465,8 +473,9 @@ const LEADERBOARD = { url: "https://rglnmzvlyeduhskdrjtj.supabase.co", anonKey: 
     if (k === "staged" && !majors) msgs.push(["jonas", f.B ? "5 % went fine, and the 4.00 € case is in the release notes. Rolling out to everyone today. Nice work!" : "5 % went fine. Rolling out to everyone today. Nice work!"]);
     if ((k === "all" || k === "auto") && majors) msgs.push(["jonas", "Support has been busy since 6 am. We're rolling back and preparing a hotfix. 😬"]);
     if ((k === "all" || k === "auto") && !majors) msgs.push(["jonas", f.B ? "Everything is live. A few tickets about the 4.00 € case, but nothing big." : "Everything is live, and support is quiet. 👍"]);
-    if (k === "hold" && majors) msgs.push(["jonas", "Good call to hold it. We ship tomorrow, after the fixes."]);
-    if (k === "hold" && !majors) msgs.push(["jonas", f.B ? "We held the release for one minor bug. Marketing had to move the campaign. Next time let's talk about the risk first." : "We held a release without any known bug? The campaign moved to next week…"]);
+    if (k === "hold" && known.major) msgs.push(["jonas", "Good call to hold it. We ship tomorrow, after the fixes."]);
+    else if (k === "hold" && known.minor) msgs.push(["jonas", "We held the release for one minor bug. Marketing had to move the campaign. Next time let's talk about the risk first."]);
+    else if (k === "hold") msgs.push(["jonas", "We held a release without a single open bug report? The campaign moved to next week…"]);
     return { people, cents, rating: Math.max(1, rating), msgs };
   }
 
@@ -481,13 +490,16 @@ const LEADERBOARD = { url: "https://rglnmzvlyeduhskdrjtj.supabase.co", anonKey: 
     Object.values(S.reports).forEach((r) => { rep += Math.max(0, (r.expectedOk ? 3 : 0) + r.sevPts - (r.short ? 1 : 0)); });
     rows.push(["Bug report quality (expected value, severity, title)", Math.min(15, rep), 15]);
     rows.push(["Ran the full pipeline after a fix", S.ciAfterFix ? 10 : 0, 10]);
-    const majors = f.A || f.R;
+    // Judged on what you knew (your open bug tickets), plus a smaller penalty for what you missed.
+    const known = knownOpen();
     const k = S.decision;
     let d;
-    if (majors) d = { hold: 20, staged: 8, all: 0, auto: 0 }[k];
-    else if (f.B) d = { staged: 20, all: 10, hold: 6, auto: 5 }[k];
+    if (known.major) d = { hold: 20, staged: 8, all: 0, auto: 0 }[k];
+    else if (known.minor) d = { staged: 20, all: 10, hold: 6, auto: 5 }[k];
+    else if ((f.A && !S.found.A) || (f.R && !S.found.R)) d = { staged: 10, hold: 6, all: 0, auto: 0 }[k];
+    else if (f.B && !S.found.B) d = { staged: 20, all: 12, hold: 6, auto: 5 }[k];
     else d = { staged: 20, all: 16, hold: 6, auto: 8 }[k];
-    rows.push([k === "auto" ? "Release recommendation (none given by 17:00)" : "Release recommendation", d, 20]);
+    rows.push([k === "auto" ? "Release recommendation (none given by 17:00)" : "Release recommendation, based on your open bugs", d, 20]);
     if (S.falseAlarms) rows.push([`False alarms (${S.falseAlarms})`, -5 * S.falseAlarms, 0]);
     const total = Math.max(0, Math.min(100, rows.reduce((s, r) => s + r[1], 0)));
     return { rows, total };
@@ -501,24 +513,32 @@ const LEADERBOARD = { url: "https://rglnmzvlyeduhskdrjtj.supabase.co", anonKey: 
     if (LEADERBOARD.anonKey.startsWith("eyJ")) h.Authorization = "Bearer " + LEADERBOARD.anonKey;
     return h;
   }
+  // Each request writes into the game it started in (st), so "Play again" during a request is safe.
   async function lbLoad() {
+    const st = S;
     try {
       const r = await fetch(`${LEADERBOARD.url}/rest/v1/${LEADERBOARD.table}?select=nickname,score,created_at&order=score.desc,created_at.asc&limit=10`, { headers: lbHeaders() });
       if (!r.ok) throw new Error(String(r.status));
-      S.lbRows = await r.json(); S.lbError = "";
-    } catch (e) { S.lbError = "The leaderboard can't be reached right now."; }
-    if (S.screen === "report") render();
+      st.lbRows = await r.json(); st.lbError = "";
+    } catch (e) { st.lbError = "The leaderboard can't be reached right now."; }
+    if (S === st && S.screen === "report") render();
   }
   async function lbSubmit(nick, total) {
+    if (S.saving || S.submitted) return;
+    const st = S;
+    st.saving = true; st.nickDraft = nick; st.lbError = ""; render();
     try {
       const r = await fetch(`${LEADERBOARD.url}/rest/v1/${LEADERBOARD.table}`, {
         method: "POST", headers: Object.assign({ Prefer: "return=minimal" }, lbHeaders()),
         body: JSON.stringify({ nickname: nick, score: total }),
       });
       if (!r.ok) throw new Error(String(r.status));
-      S.submitted = true; S.myNick = nick; S.lbError = "";
-      await lbLoad();
-    } catch (e) { S.lbError = "Your score could not be saved. Try again in a moment."; render(); }
+      st.submitted = true; st.saving = false; st.myNick = nick; st.lbError = "";
+      if (S === st) await lbLoad();
+    } catch (e) {
+      st.saving = false; st.lbError = "Your score could not be saved. Try again in a moment.";
+      if (S === st) render();
+    }
   }
 
   // ---------------------------------------------------------------- views
@@ -552,7 +572,7 @@ const LEADERBOARD = { url: "https://rglnmzvlyeduhskdrjtj.supabase.co", anonKey: 
     const msgs = S.messages.map((m) => {
       const p = P[m.from];
       let act = "";
-      if (m.action === "wait" && m.id === lastWait && S.fix.readyAt !== null) act = `<div class="row-btns"><button class="btn ghost" data-act="wait">Skip ahead to the new build</button></div>`;
+      if (m.action === "wait" && m.id === lastWait && S.fix.readyAt !== null && S.fix.readyAt <= 17 * 60) act = `<div class="row-btns"><button class="btn ghost" data-act="wait">Skip ahead to the new build</button></div>`;
       return `<div class="msg${m.id >= S.animFrom ? " new" : ""}">${av(m.from)}<div><div class="who">${p.name}<span>${p.role ? p.role + ", " : ""}${hhmm(m.time)}</span></div><div class="text">${m.html}</div>${act}</div></div>`;
     }).join("");
     return `<div aria-live="polite">${msgs}</div>
@@ -733,10 +753,12 @@ const LEADERBOARD = { url: "https://rglnmzvlyeduhskdrjtj.supabase.co", anonKey: 
     let lb = "";
     if (lbOn()) {
       const list = S.lbRows ? `<ol class="lb">${S.lbRows.map((x) => `<li class="${S.submitted && x.nickname === S.myNick ? "me" : ""}"><span>${esc(x.nickname)}</span><span class="mono">${x.score}</span></li>`).join("")}</ol>` : (S.lbError ? "" : `<p class="small muted">Loading…</p>`);
+      const outside = S.submitted && S.lbRows && !S.lbRows.some((x) => x.nickname === S.myNick);
+      const mine = outside ? `<p class="small" style="margin:8px 0 0">Your score: <b>${esc(S.myNick)}</b>, ${t} points. Not in the top 10 this time.</p>` : "";
       lb = `<div class="panel"><h3 style="margin-top:0">Class leaderboard</h3>
-        ${S.submitted ? "" : `<div class="field"><label for="nick">Your nickname</label><div class="inrow"><input id="nick" maxlength="16" placeholder="max. 16 characters"><button class="btn" data-act="submit">Save score</button></div></div>`}
+        ${S.submitted ? "" : `<div class="field"><label for="nick">Your nickname</label><div class="inrow"><input id="nick" maxlength="16" placeholder="max. 16 characters" value="${esc(S.nickDraft)}"${S.saving ? " disabled" : ""}><button class="btn" data-act="submit"${S.saving ? " disabled" : ""}>${S.saving ? "Saving…" : "Save score"}</button></div></div>`}
         ${S.lbError ? `<p class="small" style="color:var(--bug)">${S.lbError}</p>` : ""}
-        ${list}</div>`;
+        ${list}${mine}</div>`;
     }
     return `<section class="stage">
       <p class="kick">Your day report</p>
@@ -832,6 +854,7 @@ const LEADERBOARD = { url: "https://rglnmzvlyeduhskdrjtj.supabase.co", anonKey: 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && S.sheet) { S.sheet = null; render(); }
     if (e.key === "Enter" && (e.target.id === "price" || e.target.id === "delay")) runApp();
+    if (e.key === "Enter" && e.target.id === "nick" && S.screen === "report") document.querySelector('[data-act="submit"]').click();
   });
 
   S = fresh();
